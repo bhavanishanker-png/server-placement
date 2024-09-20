@@ -8,10 +8,7 @@ const emailValidator = require('email-validator');
 
 const app = express();
 app.use(express.json());
-app.use(cors({
-    origin: ['http://localhost:3000', 'https://placement-cell-client1.vercel.app'],
-    credentials: true
-}));
+app.use(cors());
 
 
 // const limiter = rateLimit({
