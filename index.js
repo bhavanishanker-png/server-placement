@@ -4,22 +4,14 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const emailValidator = require('email-validator');
-// const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+console.log(process.env.DB_PASSWORD);
 
-// const limiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, 
-//     max: 100 
-// });
-// app.use(limiter);
-
-console.log(process.env.DB_PASSWORD)
-
-
+// MySQL connection (defaultdb for all operations)
 const defaultdb = mysql.createConnection({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -37,40 +29,11 @@ defaultdb.connect((err) => {
     console.log('Connected to MySQL server.');
 });
 
-
-app.get('/',(req,res)=>{
-    res.send('Hello World');
-})
-
-app.post('/api/create-jobs-table', (req, res) => {
-    const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS jobs (
-            id INT PRIMARY KEY,
-            title VARCHAR(255),
-            company VARCHAR(255),
-            type ENUM('full_time', 'part_time', 'contract'),
-            date DATETIME,
-            location VARCHAR(255),
-            salary VARCHAR(255),
-            logo VARCHAR(255),
-            UNIQUE KEY (id)
-        )
-    `;
-
-    defaultdb.query(createTableQuery, (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: 'Database error', error: err });
-        }
-        res.status(200).json({ message: 'Table created successfully', result });
-    });
-});
-
-
 // Centralized error handling middleware
-// app.use((err, req, res, next) => {
-//     console.error(err.stack);
-//     res.status(500).json({ message: 'Server Error', error: err.message });
-// });
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Server Error', error: err.message });
+});
 
 // API for user registration
 app.post('/api/register', (req, res) => {
@@ -243,73 +206,35 @@ app.get('/api/interviews', (req, res) => {
     });
 });
 
+// API to delete an interview
+app.delete('/api/interviews/:id', (req, res) => {
+    const interviewId = req.params.id;
+
+    const deleteQuery = 'DELETE FROM interviews WHERE id = ?';
+    defaultdb.query(deleteQuery, [interviewId], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Server error' });
+        }
+        if (result.affectedRows > 0) {
+            res.status(200).json({ message: 'Interview deleted successfully' });
+        } else {
+            res.status(404).json({ message: 'Interview not found' });
+        }
+    });
+});
+
 // API to add jobs
 app.post('/api/jobs', (req, res) => {
     const jobs = req.body;
 
-    if (!Array.isArray(jobs) || jobs.length === 0) {
-        return res.status(400).json({ message: 'Invalid input data' });
-    }
+    const insertJobsQuery = 'INSERT INTO jobs (id, title, company, type, date, location, salary, logo) VALUES ?';
+    const values = jobs.map(job => [job.id, job.title, job.company, job.type, job.date, job.location, job.salary, job.logo]);
 
-    // Prepare SQL queries and parameters for updating jobs
-    const updateQueries = jobs.map(job => {
-        return {
-            query: `
-                UPDATE jobs
-                SET
-                    title = ?,
-                    company = ?,
-                    type = ?,
-                    date = ?,
-                    location = ?,
-                    salary = ?,
-                    logo = ?
-                WHERE id = ?;
-            `,
-            params: [
-                job.title,
-                job.company,
-                job.type,
-                job.date,
-                job.location,
-                job.salary,
-                job.logo,
-                job.id
-            ]
-        };
-    });
-
-    // Execute all update queries in a transaction
-    defaultdb.beginTransaction(err => {
+    defaultdb.query(insertJobsQuery, [values], (err, result) => {
         if (err) {
-            return res.status(500).json({ message: 'Transaction error', error: err });
+            return res.status(500).json({ message: 'Database error', error: err });
         }
-
-        let queriesExecuted = 0;
-        let errorOccurred = false;
-
-        updateQueries.forEach(({ query, params }) => {
-            defaultdb.query(query, params, (err, result) => {
-                if (err) {
-                    errorOccurred = true;
-                    return defaultdb.rollback(() => {
-                        res.status(500).json({ message: 'Database error', error: err });
-                    });
-                }
-
-                queriesExecuted++;
-                if (queriesExecuted === updateQueries.length && !errorOccurred) {
-                    defaultdb.commit(err => {
-                        if (err) {
-                            return defaultdb.rollback(() => {
-                                res.status(500).json({ message: 'Commit error', error: err });
-                            });
-                        }
-                        res.status(200).json({ message: 'Jobs updated successfully' });
-                    });
-                }
-            });
-        });
+        res.status(201).json({ message: 'Jobs inserted successfully' });
     });
 });
 
@@ -323,99 +248,6 @@ app.get('/api/jobs', (req, res) => {
         res.json(results);
     });
 });
-app.put('/api/students/:id', (req, res) => {
-    const studentId = req.params.id;
-    const { name, age, gender, college, batch, status, dsaScore, reactScore, webdScore } = req.body;
-
-    const updateQuery = `
-        UPDATE students
-        SET name = ?, age = ?, gender = ?, college = ?, batch = ?, status = ?, dsaScore = ?, reactScore = ?, webdScore = ?
-        WHERE id = ?
-    `;
-    const values = [name, age, gender, college, batch, status, dsaScore, reactScore, webdScore, studentId];
-
-    defaultdb.query(updateQuery, values, (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error updating student', error: err });
-        }
-        res.status(200).json({ message: 'Student updated successfully' });
-    });
-});
-// API to delete a student
-app.delete('/api/students/:id', (req, res) => {
-    const studentId = req.params.id;
-    console.log(studentId)
-    const deleteQuery = 'DELETE FROM students WHERE id = ?';
-    defaultdb.query(deleteQuery, [studentId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error deleting student', error: err });
-        }
-        res.status(200).json({ message: 'Student deleted successfully' });
-    });
-});
-app.delete('/api/jobs/:id', (req, res) => {
-    const studentId = req.params.id;
-    console.log(studentId)
-    const deleteQuery = 'DELETE FROM jobs WHERE id = ?';
-    defaultdb.query(deleteQuery, [studentId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error deleting student', error: err });
-        }
-        res.status(200).json({ message: 'Student deleted successfully' });
-    });
-});
-// API to show all tables and their data
-// API to show all tables and their data
-// API to show all tables and their data
-app.get('/api/tables', (req, res) => {
-    const getTablesQuery = `
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = ?
-    `;
-
-    defaultdb.query(getTablesQuery, [process.env.DB_NAME], (err, tables) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error fetching table names', error: err });
-        }
-
-        if (tables.length === 0) {
-            return res.status(404).json({ message: 'No tables found' });
-        }
-
-        let tableData = {}; // Object to store all tables and their data
-        let processedTables = 0; // Counter for processed tables
-
-        tables.forEach(table => {
-            const tableName = table.TABLE_NAME; // Correctly access table name
-
-            if (!tableName) {
-                return res.status(500).json({ message: 'Invalid table name found' });
-            }
-
-            const getTableDataQuery = `SELECT * FROM ??`; // Placeholder for table name to prevent SQL injection
-            defaultdb.query(getTableDataQuery, [tableName], (err, tableResults) => {
-                if (err) {
-                    // Send the error only once if an issue is encountered
-                    if (!res.headersSent) {
-                        return res.status(500).json({ message: `Error fetching data for table ${tableName}`, error: err });
-                    }
-                    return; // Exit early if headers have already been sent
-                }
-
-                // Add the fetched table data to tableData object
-                tableData[tableName] = tableResults;
-                processedTables++;
-
-                // If all tables are processed, send the response once
-                if (processedTables === tables.length && !res.headersSent) {
-                    res.status(200).json(tableData);
-                }
-            });
-        });
-    });
-});
-
 
 // Start the server
 const PORT = process.env.PORT || 5001;
