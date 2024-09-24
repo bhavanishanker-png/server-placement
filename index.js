@@ -34,7 +34,9 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Server Error', error: err.message });
 });
-
+app.get("/",(req,res)=>{
+    res.send("Hello World")
+})
 // API for user registration
 app.post('/api/register', (req, res) => {
     const { email, password } = req.body;
