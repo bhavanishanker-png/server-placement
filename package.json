@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "build": "echo 'Building the project...'",  // Optional placeholder, no real build step needed for Node.js
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
