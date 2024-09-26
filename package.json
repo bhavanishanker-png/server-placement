@@ -35,10 +35,10 @@
   },
  "repository": {
   "type": "git",
-  "url": "https://github.com/bhavanishanker-png/auth-server.git"
+  "url": "https://github.com/bhavanishanker-png/server-placement.git"
 },
 "bugs": {
-  "url": "https://github.com/bhavanishanker-png/auth-server/issues"
+  "url": "https://github.com/bhavanishanker-png/server-placement/issues"
 },
-"homepage": "https://github.com/bhavanishanker-png/auth-server#readme"
+"homepage": "https://github.com/bhavanishanker-png/server-placement#readme"
 }
