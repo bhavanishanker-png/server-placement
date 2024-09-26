@@ -1,14 +1,22 @@
 {
   "name": "auth-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Node.js authentication server using Express, JWT, and MySQL",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "echo 'Building the project...'",  // Optional placeholder, no real build step needed for Node.js
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "auth-server",
+    "nodejs",
+    "express",
+    "mysql",
+    "jwt"
+  ],
+  "author": "Your Name",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -19,5 +27,19 @@
     "express-rate-limit": "^7.4.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.2"
-  }
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "engines": {
+    "node": ">=14.x"
+  },
+ "repository": {
+  "type": "git",
+  "url": "https://github.com/bhavanishanker-png/auth-server.git"
+},
+"bugs": {
+  "url": "https://github.com/bhavanishanker-png/auth-server/issues"
+},
+"homepage": "https://github.com/bhavanishanker-png/auth-server#readme"
 }
