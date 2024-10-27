@@ -4,19 +4,10 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const emailValidator = require('email-validator');
-// const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.use(express.json());
-app.use(cors({}));
-
-
-// const limiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, 
-//     max: 100 
-// });
-// app.use(limiter);
-
+app.use(cors());
 console.log(process.env.DB_PASSWORD)
 
 
@@ -64,14 +55,6 @@ app.post('/api/create-jobs-table', (req, res) => {
         res.status(200).json({ message: 'Table created successfully', result });
     });
 });
-
-
-// Centralized error handling middleware
-// app.use((err, req, res, next) => {
-//     console.error(err.stack);
-//     res.status(500).json({ message: 'Server Error', error: err.message });
-// });
-
 // API for user registration
 app.post('/api/register', (req, res) => {
     const { email, password } = req.body;
