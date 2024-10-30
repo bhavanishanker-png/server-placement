@@ -4,30 +4,31 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const emailValidator = require('email-validator');
-
 const app = express();
 app.use(express.json());
-app.use(cors());
-console.log(process.env.DB_PASSWORD)
+app.use(cors({}));
 
+// Logging connection details without exposing sensitive info
+console.log(`Attempting to connect to MySQL server at ${process.env.DB_HOST}:${process.env.DB_PORT}`);
 
 const defaultdb = mysql.createConnection({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    port: process.env.DB_PORT
+    port: process.env.DB_PORT,
+    connectTimeout: 10000 // 10 seconds timeout
 });
 
-// Connect to MySQL
+// Test the connection
 defaultdb.connect((err) => {
     if (err) {
-        console.error('Error connecting to MySQL:', err.message);
+        console.error('Connection failed:', err.message);
+        console.log('Ensure that the MySQL server allows connections from your IP address.');
         return;
     }
-    console.log('Connected to MySQL server.');
+    console.log('Successfully connected to MySQL server.');
 });
-
 
 app.get('/',(req,res)=>{
     res.send('Hello World');
@@ -55,6 +56,9 @@ app.post('/api/create-jobs-table', (req, res) => {
         res.status(200).json({ message: 'Table created successfully', result });
     });
 });
+
+
+
 // API for user registration
 app.post('/api/register', (req, res) => {
     const { email, password } = req.body;
@@ -324,6 +328,32 @@ app.put('/api/students/:id', (req, res) => {
         res.status(200).json({ message: 'Student updated successfully' });
     });
 });
+// API to update an interview
+app.put('/api/interviews/:id', (req, res) => {
+    const interviewId = req.params.id;
+    const { companyName, date, status, interviewers } = req.body;
+
+    const updateQuery = `
+        UPDATE interviews
+        SET companyName = ?, date = ?, status = ?, interviewers = ?
+        WHERE id = ?
+    `;
+    const values = [companyName, date, status, interviewers, interviewId];
+
+    defaultdb.query(updateQuery, values, (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error updating interview', error: err });
+        }
+
+        // Check if any rows were affected
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Interview not found' });
+        }
+
+        res.status(200).json({ message: 'Interview updated successfully' });
+    });
+});
+
 // API to delete a student
 app.delete('/api/students/:id', (req, res) => {
     const studentId = req.params.id;
@@ -336,6 +366,25 @@ app.delete('/api/students/:id', (req, res) => {
         res.status(200).json({ message: 'Student deleted successfully' });
     });
 });
+// API to delete an interview
+app.delete('/api/interviews/:id', (req, res) => {
+    const interviewId = req.params.id;
+    console.log(interviewId);
+    
+    const deleteQuery = 'DELETE FROM interviews WHERE id = ?';
+    defaultdb.query(deleteQuery, [interviewId], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error deleting interview', error: err });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Interview not found' });
+        }
+
+        res.status(200).json({ message: 'Interview deleted successfully' });
+    });
+});
+
 app.delete('/api/jobs/:id', (req, res) => {
     const studentId = req.params.id;
     console.log(studentId)
@@ -347,8 +396,6 @@ app.delete('/api/jobs/:id', (req, res) => {
         res.status(200).json({ message: 'Student deleted successfully' });
     });
 });
-// API to show all tables and their data
-// API to show all tables and their data
 // API to show all tables and their data
 app.get('/api/tables', (req, res) => {
     const getTablesQuery = `
