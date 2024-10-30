@@ -259,6 +259,7 @@ app.get('/api/interviews', (req, res) => {
             }
 
             const interviewsWithStudents = interviewResults.map(interview => ({
+                id:interview.id,
                 companyName: interview.company,
                 date: interview.date,
                 students: studentResults.map(student => ({
