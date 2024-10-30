@@ -76,20 +76,43 @@ app.post('/api/create-interviews-table', (req, res) => {
     });
 });
 
-app.post('/add-id-column', async (req, res) => {
+// interviewRoutes.js
+const express = require('express');
+const router = express.Router();
+const db = require('../config/db'); // Adjust the path as necessary for your database configuration
+
+// Route to add a column to the interviews table if it doesn't exist
+router.post('/add-id-column', async (req, res) => {
   try {
-    const alterTableQuery = `
-      ALTER TABLE interviews
-      ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST;
+    // Check if the 'id' column exists
+    const checkColumnQuery = `
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'interviews' AND COLUMN_NAME = 'id';
     `;
     
-    await db.query(alterTableQuery);
-    res.status(200).json({ message: 'Column id added successfully to interviews table.' });
+    const [rows] = await db.query(checkColumnQuery);
+
+    // If the column does not exist, add it
+    if (rows.length === 0) {
+      const addColumnQuery = `
+        ALTER TABLE interviews 
+        ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY;
+      `;
+      
+      await db.query(addColumnQuery);
+      return res.status(200).json({ message: 'Column "id" added to the interviews table.' });
+    }
+
+    return res.status(200).json({ message: 'Column "id" already exists in the interviews table.' });
   } catch (error) {
-    console.error('Error adding id column:', error);
-    res.status(500).json({ message: 'Error adding id column to interviews table.' });
+    console.error('Error adding column to interviews table:', error);
+    return res.status(500).json({ message: 'Error adding column to interviews table.', error: error.message });
   }
 });
+
+module.exports = router;
+
 // API for user registration
 app.post('/api/register', (req, res) => {
     const { email, password } = req.body;
