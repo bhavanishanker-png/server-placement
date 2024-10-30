@@ -313,6 +313,37 @@ app.post('/api/jobs', (req, res) => {
 
     res.status(201).json({ message: 'Jobs added successfully' });
 });
+// API to get jobs
+app.get('/api/jobs', (req, res) => {
+    const query = 'SELECT * FROM jobs';
+    defaultdb.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error fetching jobs', error: err });
+        }
+        res.json(results);
+    });
+});
+
+// API to update student details
+app.put('/api/students/:id', (req, res) => {
+    const studentId = req.params.id;
+    const { name, age, gender, college, batch, status, dsaScore, reactScore, webdScore } = req.body;
+
+    const updateQuery = `
+        UPDATE students
+        SET name = ?, age = ?, gender = ?, college = ?, batch = ?, status = ?, dsaScore = ?, reactScore = ?, webdScore = ?
+        WHERE id = ?
+    `;
+    
+    const values = [name, age, gender, college, batch, status, dsaScore, reactScore, webdScore, studentId];
+
+    defaultdb.query(updateQuery, values, (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error updating student', error: err });
+        }
+        res.status(200).json({ message: 'Student updated successfully' });
+    });
+});
 
 // API to update an interview
 app.put('/api/interviews/:id', (req, res) => {
@@ -366,6 +397,54 @@ app.delete('/api/interviews/:id', (req, res) => {
             return res.status(404).json({ message: 'Interview not found' });
         }
         res.status(200).json({ message: 'Interview deleted successfully' });
+    });
+});
+app.get('/api/tables', (req, res) => {
+    const getTablesQuery = 
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = ?
+    ;
+
+    defaultdb.query(getTablesQuery, [process.env.DB_NAME], (err, tables) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error fetching table names', error: err });
+        }
+
+        if (tables.length === 0) {
+            return res.status(404).json({ message: 'No tables found' });
+        }
+
+        let tableData = {}; // Object to store all tables and their data
+        let processedTables = 0; // Counter for processed tables
+
+        tables.forEach(table => {
+            const tableName = table.TABLE_NAME; // Correctly access table name
+
+            if (!tableName) {
+                return res.status(500).json({ message: 'Invalid table name found' });
+            }
+
+            const getTableDataQuery = SELECT * FROM ??; // Placeholder for table name to prevent SQL injection
+            defaultdb.query(getTableDataQuery, [tableName], (err, tableResults) => {
+                if (err) {
+                    // Send the error only once if an issue is encountered
+                    if (!res.headersSent) {
+                        return res.status(500).json({ message: Error fetching data for table ${tableName}, error: err });
+                    }
+                    return; // Exit early if headers have already been sent
+                }
+
+                // Add the fetched table data to tableData object
+                tableData[tableName] = tableResults;
+                processedTables++;
+
+                // If all tables are processed, send the response once
+                if (processedTables === tables.length && !res.headersSent) {
+                    res.status(200).json(tableData);
+                }
+            });
+        });
     });
 });
 
