@@ -18,7 +18,7 @@ const defaultdb = mysql.createConnection({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT,
-    connectTimeout: 1000000 // 10 seconds timeout
+    connectTimeout: 1000000000000000 // 10 seconds timeout
 });
 
 // Test the connection
