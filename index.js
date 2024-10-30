@@ -59,24 +59,44 @@ app.post('/api/create-jobs-table', (req, res) => {
     });
 });
 
-// Create interviews table
-app.post('/api/create-interviews-table', (req, res) => {
-    const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS interviews (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            company VARCHAR(255) NOT NULL,
-            date DATETIME NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY (id)
-        )
-    `;
+// Create interviews tabl
+app.post('/create-interviews-table', (req, res) => {
+  const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS interviews (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          companyName VARCHAR(255) NOT NULL,
+          date DATETIME NOT NULL,
+          students JSON NOT NULL
+      )
+  `;
 
-    defaultdb.query(createTableQuery, (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: 'Database error', error: err });
-        }
-        res.status(200).json({ message: 'Interviews table created successfully', result });
-    });
+  const checkColumnQuery = `
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'interviews' 
+      AND COLUMN_NAME = 'id'
+  `;
+
+  defaultdb.query(checkColumnQuery, (err, results) => {
+      if (err) {
+          console.error('Error checking for column:', err);
+          return res.status(500).json({ error: 'Failed to check column' });
+      }
+
+      if (results.length === 0) {
+          // Column does not exist, create the table
+          defaultdb.query(createTableQuery, (err, results) => {
+              if (err) {
+                  console.error('Error creating table:', err);
+                  return res.status(500).json({ error: 'Failed to create table' });
+              }
+              return res.status(200).json({ message: 'Table created successfully', results });
+          });
+      } else {
+          // Column exists, just return a message
+          return res.status(200).json({ message: 'Table already exists with id column' });
+      }
+  });
 });
 
 // API for user registration
