@@ -7,7 +7,7 @@ const emailValidator = require('email-validator');
 
 const app = express();
 app.use(express.json());
-app.use(cors({}));
+app.use(cors());
 
 // Logging connection details without exposing sensitive info
 console.log(`Attempting to connect to MySQL server at ${process.env.DB_HOST}:${process.env.DB_PORT}`);
@@ -18,7 +18,7 @@ const defaultdb = mysql.createConnection({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT,
-    connectTimeout: 10000 // 10 seconds timeout
+    connectTimeout: 1000000 // 10 seconds timeout
 });
 
 // Test the connection
