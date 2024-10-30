@@ -86,7 +86,7 @@ app.post('/add-id-column', async (req, res) => {
       WHERE TABLE_NAME = 'interviews' AND COLUMN_NAME = 'id';
     `;
     
-    const [rows] = await db.query(checkColumnQuery);
+    const [rows] = await defaultdb.query(checkColumnQuery);
 
     // If the column does not exist, add it
     if (rows.length === 0) {
