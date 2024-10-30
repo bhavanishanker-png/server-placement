@@ -77,7 +77,7 @@ app.post('/api/create-interviews-table', (req, res) => {
 });
 
 
-router.post('/add-id-column', async (req, res) => {
+app.post('/add-id-column', async (req, res) => {
   try {
     // Check if the 'id' column exists
     const checkColumnQuery = `
