@@ -4,6 +4,7 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const emailValidator = require('email-validator');
+
 const app = express();
 app.use(express.json());
 app.use(cors({}));
@@ -30,14 +31,15 @@ defaultdb.connect((err) => {
     console.log('Successfully connected to MySQL server.');
 });
 
-app.get('/',(req,res)=>{
+app.get('/', (req, res) => {
     res.send('Hello World');
-})
+});
 
+// Create jobs table
 app.post('/api/create-jobs-table', (req, res) => {
     const createTableQuery = `
         CREATE TABLE IF NOT EXISTS jobs (
-            id INT PRIMARY KEY,
+            id INT PRIMARY KEY AUTO_INCREMENT,
             title VARCHAR(255),
             company VARCHAR(255),
             type ENUM('full_time', 'part_time', 'contract'),
@@ -57,6 +59,7 @@ app.post('/api/create-jobs-table', (req, res) => {
     });
 });
 
+// Create interviews table
 app.post('/api/create-interviews-table', (req, res) => {
     const createTableQuery = `
         CREATE TABLE IF NOT EXISTS interviews (
@@ -74,36 +77,6 @@ app.post('/api/create-interviews-table', (req, res) => {
         }
         res.status(200).json({ message: 'Interviews table created successfully', result });
     });
-});
-
-
-app.post('/add-id-column', async (req, res) => {
-  try {
-    // Check if the 'id' column exists
-    const checkColumnQuery = `
-      SELECT COLUMN_NAME 
-      FROM INFORMATION_SCHEMA.COLUMNS 
-      WHERE TABLE_NAME = 'interviews' AND COLUMN_NAME = 'id';
-    `;
-    
-    const [rows] = await defaultdb.query(checkColumnQuery);
-
-    // If the column does not exist, add it
-    if (rows.length === 0) {
-      const addColumnQuery = `
-        ALTER TABLE interviews 
-        ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY;
-      `;
-      
-      await db.query(addColumnQuery);
-      return res.status(200).json({ message: 'Column "id" added to the interviews table.' });
-    }
-
-    return res.status(200).json({ message: 'Column "id" already exists in the interviews table.' });
-  } catch (error) {
-    console.error('Error adding column to interviews table:', error);
-    return res.status(500).json({ message: 'Error adding column to interviews table.', error: error.message });
-  }
 });
 
 // API for user registration
@@ -181,7 +154,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// API to get students (no authentication)
+// API to get students
 app.get('/api/students', (req, res) => {
     const query = 'SELECT * FROM students';
     defaultdb.query(query, (err, results) => {
@@ -285,20 +258,12 @@ app.post('/api/jobs', (req, res) => {
         return res.status(400).json({ message: 'Invalid input data' });
     }
 
-    // Prepare SQL queries and parameters for updating jobs
-    const updateQueries = jobs.map(job => {
+    // Prepare SQL queries and parameters for inserting jobs
+    const insertQueries = jobs.map(job => {
         return {
             query: `
-                UPDATE jobs
-                SET
-                    title = ?,
-                    company = ?,
-                    type = ?,
-                    date = ?,
-                    location = ?,
-                    salary = ?,
-                    logo = ?
-                WHERE id = ?;
+                INSERT INTO jobs (title, company, type, date, location, salary, logo)
+                VALUES (?, ?, ?, ?, ?, ?, ?);
             `,
             params: [
                 job.title,
@@ -307,96 +272,43 @@ app.post('/api/jobs', (req, res) => {
                 job.date,
                 job.location,
                 job.salary,
-                job.logo,
-                job.id
+                job.logo
             ]
         };
     });
 
-    // Execute all update queries in a transaction
-    defaultdb.beginTransaction(err => {
-        if (err) {
-            return res.status(500).json({ message: 'Transaction error', error: err });
-        }
-
-        let queriesExecuted = 0;
-        let errorOccurred = false;
-
-        updateQueries.forEach(({ query, params }) => {
-            defaultdb.query(query, params, (err, result) => {
-                if (err) {
-                    errorOccurred = true;
-                    return defaultdb.rollback(() => {
-                        res.status(500).json({ message: 'Database error', error: err });
-                    });
-                }
-
-                queriesExecuted++;
-                if (queriesExecuted === updateQueries.length && !errorOccurred) {
-                    defaultdb.commit(err => {
-                        if (err) {
-                            return defaultdb.rollback(() => {
-                                res.status(500).json({ message: 'Commit error', error: err });
-                            });
-                        }
-                        res.status(200).json({ message: 'Jobs updated successfully' });
-                    });
-                }
-            });
+    // Execute each query
+    insertQueries.forEach(({ query, params }) => {
+        defaultdb.query(query, params, (err, result) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ message: 'Error inserting jobs', error: err });
+            }
         });
     });
+
+    res.status(201).json({ message: 'Jobs added successfully' });
 });
 
-// API to get jobs
-app.get('/api/jobs', (req, res) => {
-    const query = 'SELECT * FROM jobs';
-    defaultdb.query(query, (err, results) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error fetching jobs', error: err });
-        }
-        res.json(results);
-    });
-});
-app.put('/api/students/:id', (req, res) => {
-    const studentId = req.params.id;
-    const { name, age, gender, college, batch, status, dsaScore, reactScore, webdScore } = req.body;
-
-    const updateQuery = `
-        UPDATE students
-        SET name = ?, age = ?, gender = ?, college = ?, batch = ?, status = ?, dsaScore = ?, reactScore = ?, webdScore = ?
-        WHERE id = ?
-    `;
-    const values = [name, age, gender, college, batch, status, dsaScore, reactScore, webdScore, studentId];
-
-    defaultdb.query(updateQuery, values, (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error updating student', error: err });
-        }
-        res.status(200).json({ message: 'Student updated successfully' });
-    });
-});
 // API to update an interview
 app.put('/api/interviews/:id', (req, res) => {
     const interviewId = req.params.id;
-    const { companyName, date, status, interviewers } = req.body;
+    const { company, date } = req.body;
 
     const updateQuery = `
         UPDATE interviews
-        SET companyName = ?, date = ?, status = ?, interviewers = ?
+        SET company = ?, date = ?
         WHERE id = ?
     `;
-    const values = [companyName, date, status, interviewers, interviewId];
+    const values = [company, date, interviewId];
 
     defaultdb.query(updateQuery, values, (err, result) => {
         if (err) {
             return res.status(500).json({ message: 'Error updating interview', error: err });
         }
-
-        // Check if any rows were affected
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Interview not found' });
         }
-
         res.status(200).json({ message: 'Interview updated successfully' });
     });
 });
@@ -404,98 +316,37 @@ app.put('/api/interviews/:id', (req, res) => {
 // API to delete a student
 app.delete('/api/students/:id', (req, res) => {
     const studentId = req.params.id;
-    console.log(studentId)
+
     const deleteQuery = 'DELETE FROM students WHERE id = ?';
     defaultdb.query(deleteQuery, [studentId], (err, result) => {
         if (err) {
             return res.status(500).json({ message: 'Error deleting student', error: err });
         }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
         res.status(200).json({ message: 'Student deleted successfully' });
     });
 });
+
 // API to delete an interview
 app.delete('/api/interviews/:id', (req, res) => {
     const interviewId = req.params.id;
-    console.log(interviewId);
-    
+
     const deleteQuery = 'DELETE FROM interviews WHERE id = ?';
     defaultdb.query(deleteQuery, [interviewId], (err, result) => {
         if (err) {
             return res.status(500).json({ message: 'Error deleting interview', error: err });
         }
-
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Interview not found' });
         }
-
         res.status(200).json({ message: 'Interview deleted successfully' });
     });
 });
 
-app.delete('/api/jobs/:id', (req, res) => {
-    const studentId = req.params.id;
-    console.log(studentId)
-    const deleteQuery = 'DELETE FROM jobs WHERE id = ?';
-    defaultdb.query(deleteQuery, [studentId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error deleting student', error: err });
-        }
-        res.status(200).json({ message: 'Student deleted successfully' });
-    });
-});
-// API to show all tables and their data
-app.get('/api/tables', (req, res) => {
-    const getTablesQuery = `
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = ?
-    `;
-
-    defaultdb.query(getTablesQuery, [process.env.DB_NAME], (err, tables) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error fetching table names', error: err });
-        }
-
-        if (tables.length === 0) {
-            return res.status(404).json({ message: 'No tables found' });
-        }
-
-        let tableData = {}; // Object to store all tables and their data
-        let processedTables = 0; // Counter for processed tables
-
-        tables.forEach(table => {
-            const tableName = table.TABLE_NAME; // Correctly access table name
-
-            if (!tableName) {
-                return res.status(500).json({ message: 'Invalid table name found' });
-            }
-
-            const getTableDataQuery = `SELECT * FROM ??`; // Placeholder for table name to prevent SQL injection
-            defaultdb.query(getTableDataQuery, [tableName], (err, tableResults) => {
-                if (err) {
-                    // Send the error only once if an issue is encountered
-                    if (!res.headersSent) {
-                        return res.status(500).json({ message: `Error fetching data for table ${tableName}`, error: err });
-                    }
-                    return; // Exit early if headers have already been sent
-                }
-
-                // Add the fetched table data to tableData object
-                tableData[tableName] = tableResults;
-                processedTables++;
-
-                // If all tables are processed, send the response once
-                if (processedTables === tables.length && !res.headersSent) {
-                    res.status(200).json(tableData);
-                }
-            });
-        });
-    });
-});
-
-
 // Start the server
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
