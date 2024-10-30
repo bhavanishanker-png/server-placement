@@ -57,6 +57,24 @@ app.post('/api/create-jobs-table', (req, res) => {
     });
 });
 
+app.post('/api/create-interviews-table', (req, res) => {
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS interviews (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company VARCHAR(255) NOT NULL,
+            date DATETIME NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY (id)
+        )
+    `;
+
+    defaultdb.query(createTableQuery, (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.status(200).json({ message: 'Interviews table created successfully', result });
+    });
+});
 
 
 // API for user registration
