@@ -18,7 +18,7 @@ const defaultdb = mysql.createConnection({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT,
-    connectTimeout: 1000000000000000 // 10 seconds timeout
+    connectTimeout: 100000000
 });
 
 // Test the connection
@@ -401,10 +401,7 @@ app.delete('/api/interviews/:id', (req, res) => {
 });
 app.get('/api/tables', (req, res) => {
     const getTablesQuery = 
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = ?
-    ;
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = ?';
 
     defaultdb.query(getTablesQuery, [process.env.DB_NAME], (err, tables) => {
         if (err) {
@@ -419,20 +416,19 @@ app.get('/api/tables', (req, res) => {
         let processedTables = 0; // Counter for processed tables
 
         tables.forEach(table => {
-            const tableName = table.TABLE_NAME; // Correctly access table name
+            const tableName = table.table_name; // Correctly access table name
 
             if (!tableName) {
                 return res.status(500).json({ message: 'Invalid table name found' });
             }
 
-            const getTableDataQuery = SELECT * FROM ??; // Placeholder for table name to prevent SQL injection
+            const getTableDataQuery = 'SELECT * FROM ??'; // Prevents SQL injection
             defaultdb.query(getTableDataQuery, [tableName], (err, tableResults) => {
                 if (err) {
-                    // Send the error only once if an issue is encountered
                     if (!res.headersSent) {
-                        return res.status(500).json({ message: Error fetching data for table ${tableName}, error: err });
+                        return res.status(500).json({ message: `Error fetching data for table ${tableName}`, error: err });
                     }
-                    return; // Exit early if headers have already been sent
+                    return;
                 }
 
                 // Add the fetched table data to tableData object
@@ -447,6 +443,7 @@ app.get('/api/tables', (req, res) => {
         });
     });
 });
+
 
 // Start the server
 const PORT = process.env.PORT || 5000;
