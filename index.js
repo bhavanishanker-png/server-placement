@@ -78,7 +78,7 @@ app.post('/create-table', (req, res) => {
         AND COLUMN_NAME = 'id'
     `;
 
-    pool.query(checkColumnQuery, (err, results) => {
+    defaultdb.query(checkColumnQuery, (err, results) => {
         if (err) {
             console.error('Error checking for column:', err);
             return res.status(500).json({ error: 'Failed to check column', details: err });
@@ -88,7 +88,7 @@ app.post('/create-table', (req, res) => {
 
         if (results.length === 0) {
             // Column does not exist, create the table
-            pool.query(createTableQuery, (err, results) => {
+           defaultdb.query(createTableQuery, (err, results) => {
                 if (err) {
                     console.error('Error creating table:', err);
                     return res.status(500).json({ error: 'Failed to create table', details: err });
