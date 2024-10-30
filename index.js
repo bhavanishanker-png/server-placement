@@ -76,7 +76,20 @@ app.post('/api/create-interviews-table', (req, res) => {
     });
 });
 
-
+app.post('/add-id-column', async (req, res) => {
+  try {
+    const alterTableQuery = `
+      ALTER TABLE interviews
+      ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST;
+    `;
+    
+    await db.query(alterTableQuery);
+    res.status(200).json({ message: 'Column id added successfully to interviews table.' });
+  } catch (error) {
+    console.error('Error adding id column:', error);
+    res.status(500).json({ message: 'Error adding id column to interviews table.' });
+  }
+});
 // API for user registration
 app.post('/api/register', (req, res) => {
     const { email, password } = req.body;
