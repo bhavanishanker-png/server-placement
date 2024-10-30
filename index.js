@@ -60,43 +60,46 @@ app.post('/api/create-jobs-table', (req, res) => {
 });
 
 // Create interviews tabl
-app.post('/create-interviews-table', (req, res) => {
-  const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS interviews (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          companyName VARCHAR(255) NOT NULL,
-          date DATETIME NOT NULL,
-          students JSON NOT NULL
-      )
-  `;
+app.post('/create-table', (req, res) => {
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS interviews (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            companyName VARCHAR(255) NOT NULL,
+            date DATETIME NOT NULL,
+            students JSON NOT NULL
+        )
+    `;
 
-  const checkColumnQuery = `
-      SELECT COLUMN_NAME 
-      FROM INFORMATION_SCHEMA.COLUMNS 
-      WHERE TABLE_NAME = 'interviews' 
-      AND COLUMN_NAME = 'id'
-  `;
+    const checkColumnQuery = `
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_NAME = 'interviews' 
+        AND TABLE_SCHEMA = 'defaultdb'
+        AND COLUMN_NAME = 'id'
+    `;
 
-  defaultdb.query(checkColumnQuery, (err, results) => {
-      if (err) {
-          console.error('Error checking for column:', err);
-          return res.status(500).json({ error: 'Failed to check column' });
-      }
+    pool.query(checkColumnQuery, (err, results) => {
+        if (err) {
+            console.error('Error checking for column:', err);
+            return res.status(500).json({ error: 'Failed to check column', details: err });
+        }
 
-      if (results.length === 0) {
-          // Column does not exist, create the table
-          defaultdb.query(createTableQuery, (err, results) => {
-              if (err) {
-                  console.error('Error creating table:', err);
-                  return res.status(500).json({ error: 'Failed to create table' });
-              }
-              return res.status(200).json({ message: 'Table created successfully', results });
-          });
-      } else {
-          // Column exists, just return a message
-          return res.status(200).json({ message: 'Table already exists with id column' });
-      }
-  });
+        console.log('Column check results:', results);  // Log the results
+
+        if (results.length === 0) {
+            // Column does not exist, create the table
+            pool.query(createTableQuery, (err, results) => {
+                if (err) {
+                    console.error('Error creating table:', err);
+                    return res.status(500).json({ error: 'Failed to create table', details: err });
+                }
+                return res.status(200).json({ message: 'Table created successfully', results });
+            });
+        } else {
+            // Column exists, just return a message
+            return res.status(200).json({ message: 'Table already exists with id column' });
+        }
+    });
 });
 
 // API for user registration
