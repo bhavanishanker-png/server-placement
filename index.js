@@ -4,12 +4,12 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const emailValidator = require('email-validator');
-
+const jwt = require('jsonwebtoken');
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Logging connection details without exposing sensitive info
+
 console.log(`Attempting to connect to MySQL server at ${process.env.DB_HOST}:${process.env.DB_PORT}`);
 
 const defaultdb = mysql.createConnection({
@@ -33,73 +33,6 @@ defaultdb.connect((err) => {
 
 app.get('/', (req, res) => {
     res.send('Hello World');
-});
-
-// Create jobs table
-app.post('/api/create-jobs-table', (req, res) => {
-    const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS jobs (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            title VARCHAR(255),
-            company VARCHAR(255),
-            type ENUM('full_time', 'part_time', 'contract'),
-            date DATETIME,
-            location VARCHAR(255),
-            salary VARCHAR(255),
-            logo VARCHAR(255),
-            UNIQUE KEY (id)
-        )
-    `;
-
-    defaultdb.query(createTableQuery, (err, result) => {
-        if (err) {
-            return res.status(500).json({ message: 'Database error', error: err });
-        }
-        res.status(200).json({ message: 'Table created successfully', result });
-    });
-});
-
-// Create interviews tabl
-app.post('/create-table', (req, res) => {
-    const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS interviews (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            companyName VARCHAR(255) NOT NULL,
-            date DATETIME NOT NULL,
-            students JSON NOT NULL
-        )
-    `;
-
-    const checkColumnQuery = `
-        SELECT COLUMN_NAME 
-        FROM INFORMATION_SCHEMA.COLUMNS 
-        WHERE TABLE_NAME = 'interviews' 
-        AND TABLE_SCHEMA = 'defaultdb'
-        AND COLUMN_NAME = 'id'
-    `;
-
-    defaultdb.query(checkColumnQuery, (err, results) => {
-        if (err) {
-            console.error('Error checking for column:', err);
-            return res.status(500).json({ error: 'Failed to check column', details: err });
-        }
-
-        console.log('Column check results:', results);  // Log the results
-
-        if (results.length === 0) {
-            // Column does not exist, create the table
-           defaultdb.query(createTableQuery, (err, results) => {
-                if (err) {
-                    console.error('Error creating table:', err);
-                    return res.status(500).json({ error: 'Failed to create table', details: err });
-                }
-                return res.status(200).json({ message: 'Table created successfully', results });
-            });
-        } else {
-            // Column exists, just return a message
-            return res.status(200).json({ message: 'Table already exists with id column' });
-        }
-    });
 });
 
 // API for user registration
@@ -136,13 +69,15 @@ app.post('/api/register', (req, res) => {
                 if (err) {
                     return res.status(500).json({ message: 'Database error' });
                 }
-                res.status(201).json({ message: 'User registered successfully' });
+
+                // Create JWT token after successful registration
+                const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
+                res.status(201).json({ message: 'User registered successfully', token });
             });
         });
     });
 });
 
-// API for logging in
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
 
@@ -169,14 +104,29 @@ app.post('/api/login', (req, res) => {
                 return res.status(500).json({ message: 'Error comparing passwords' });
             }
             if (isMatch) {
-                return res.json({ message: 'Login successful' });
+                // Generate JWT token after successful login
+                const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+                return res.json({ message: 'Login successful', token });
             } else {
                 return res.status(400).json({ message: 'Invalid credentials' });
             }
         });
     });
 });
+const authenticateToken = (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+        return res.status(401).json({ message: 'Access denied. No token provided.' });
+    }
 
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Invalid or expired token' });
+        }
+        req.user = user;
+        next();
+    });
+};
 // API to get students
 app.get('/api/students', (req, res) => {
     const query = 'SELECT * FROM students';
@@ -282,7 +232,6 @@ app.post('/api/jobs', (req, res) => {
         return res.status(400).json({ message: 'Invalid input data' });
     }
 
-    // Prepare SQL queries and parameters for inserting jobs
     const insertQueries = jobs.map(job => {
         return {
             query: `
@@ -301,7 +250,7 @@ app.post('/api/jobs', (req, res) => {
         };
     });
 
-    // Execute each query
+
     insertQueries.forEach(({ query, params }) => {
         defaultdb.query(query, params, (err, result) => {
             if (err) {
@@ -412,11 +361,11 @@ app.get('/api/tables', (req, res) => {
             return res.status(404).json({ message: 'No tables found' });
         }
 
-        let tableData = {}; // Object to store all tables and their data
-        let processedTables = 0; // Counter for processed tables
+        let tableData = {}; 
+        let processedTables = 0; 
 
         tables.forEach(table => {
-            const tableName = table.table_name; // Correctly access table name
+            const tableName = table.table_name; 
 
             if (!tableName) {
                 return res.status(500).json({ message: 'Invalid table name found' });
@@ -431,11 +380,11 @@ app.get('/api/tables', (req, res) => {
                     return;
                 }
 
-                // Add the fetched table data to tableData object
+
                 tableData[tableName] = tableResults;
                 processedTables++;
 
-                // If all tables are processed, send the response once
+
                 if (processedTables === tables.length && !res.headersSent) {
                     res.status(200).json(tableData);
                 }
@@ -446,7 +395,7 @@ app.get('/api/tables', (req, res) => {
 
 
 // Start the server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
