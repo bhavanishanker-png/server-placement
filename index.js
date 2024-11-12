@@ -334,20 +334,34 @@ app.delete('/api/students/:id', (req, res) => {
 });
 
 // API to delete an interview
-app.delete('/api/interviews/:id', (req, res) => {
+app.put('/api/interviews/:id', (req, res) => {
     const interviewId = req.params.id;
+    const { company, date } = req.body;
 
-    const deleteQuery = 'DELETE FROM interviews WHERE id = ?';
-    defaultdb.query(deleteQuery, [interviewId], (err, result) => {
+    // Validate required fields
+    if (!company || !date) {
+        return res.status(400).json({ message: 'Company and date are required' });
+    }
+
+    const updateQuery = `
+        UPDATE interviews
+        SET company = ?, date = ?
+        WHERE id = ?
+    `;
+    const values = [company, date, interviewId];
+
+    defaultdb.query(updateQuery, values, (err, result) => {
         if (err) {
-            return res.status(500).json({ message: 'Error deleting interview', error: err });
+            console.error("Error updating interview:", err);
+            return res.status(500).json({ message: 'Error updating interview', error: err });
         }
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Interview not found' });
         }
-        res.status(200).json({ message: 'Interview deleted successfully' });
+        res.status(200).json({ message: 'Interview updated successfully' });
     });
 });
+
 app.get('/api/tables', (req, res) => {
     const getTablesQuery = 
         'SELECT table_name FROM information_schema.tables WHERE table_schema = ?';
